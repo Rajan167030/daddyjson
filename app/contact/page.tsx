@@ -10,6 +10,7 @@ import { GlassCard } from "@/components/ui/cards/glass-card"
 import { FloatingLabelInput } from "@/components/ui/input/floating-label-input"
 import { FloatingLabelTextarea } from "@/components/ui/input/floating-label-textarea"
 import { GlowButton } from "@/components/ui/buttons/glow-button"
+import { Faq } from "@/components/faq"
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -228,6 +229,10 @@ export default function ContactPage() {
             </GlassCard>
           </ScrollReveal>
         </div>
+
+        <ScrollReveal>
+          <Faq />
+        </ScrollReveal>
       </div>
     </div>
   )

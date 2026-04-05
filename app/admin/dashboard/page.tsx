@@ -180,7 +180,7 @@ export default function AdminDashboardPage() {
         <FadeIn>
           <div className="flex items-center justify-between mb-8">
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold tracking-tighter">Admin Dashboard</h1>
+              <h1 className="text-3xl font-bold">Admin Dashboard</h1>
               <p className="text-muted-foreground">
                 Logged in as: <span className="font-semibold">{adminEmail}</span>
               </p>
@@ -201,10 +201,34 @@ export default function AdminDashboardPage() {
 
         {/* Action Buttons */}
         <div className="flex gap-3">
+          <Link href="/admin/host-session">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Host Session
+            </Button>
+          </Link>
+          <Link href="/admin/add-live-session">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Live Session
+            </Button>
+          </Link>
+          <Link href="/admin/add-session">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Session
+            </Button>
+          </Link>
+          <Link href="/admin/add-event">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Event
+            </Button>
+          </Link>
           <Link href="/admin/write-blog">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Write New Blog
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Write Blog
             </Button>
           </Link>
         </div>

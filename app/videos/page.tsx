@@ -8,6 +8,8 @@ import { StaggeredChildren } from "@/components/animations/staggered-children"
 import { StaggeredChild } from "@/components/animations/staggered-child"
 import { FadeIn } from "@/components/animations/fade-in"
 import { Skeleton } from "@/components/ui/skeleton"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 interface Video {
   id: string
@@ -60,6 +62,13 @@ export default function VideosPage() {
           <p className="text-xl text-muted-foreground max-w-[700px] mx-auto">
             Watch our latest tech videos, tutorials, and reviews
           </p>
+          <div className="pt-4">
+            <Link href="/live">
+              <Button size="lg" className="bg-red-600 hover:bg-red-700 text-white">
+                🎥 Watch Live Sessions
+              </Button>
+            </Link>
+          </div>
         </FadeIn>
 
         {/* Channel Statistics */}

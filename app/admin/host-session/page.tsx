@@ -1,0 +1,245 @@
+"use client"
+
+import { useEffect, useRef, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { io, Socket } from "socket.io-client"
+
+interface Comment {
+  id: string
+  user: string
+  message: string
+  timestamp: Date
+}
+
+export default function HostSessionPage() {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [comments, setComments] = useState<Comment[]>([])
+  const [newComment, setNewComment] = useState("")
+  const [socket, setSocket] = useState<Socket | null>(null)
+  const [sessionTitle, setSessionTitle] = useState("")
+  const [sessionDescription, setSessionDescription] = useState("")
+  const [sessionTime, setSessionTime] = useState("")
+
+  useEffect(() => {
+    const newSocket = io("/api/socket")
+    setSocket(newSocket)
+
+    newSocket.on("comment", (comment: Comment) => {
+      setComments(prev => [...prev, comment])
+    })
+
+    return () => {
+      newSocket.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
+    const newSocket = io("/api/socket")
+    setSocket(newSocket)
+
+    newSocket.on("comment", (comment: Comment) => {
+      setComments(prev => [...prev, comment])
+    })
+
+    return () => {
+      newSocket.disconnect()
+    }
+  }, [])
+
+  const startScreenShare = async () => {
+    if (!sessionTitle || !sessionDescription || !sessionTime) {
+      alert("Please fill in all session details before starting the stream.")
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        setIsStreaming(true)
+      }
+
+      // Mark session as active
+      await fetch('/api/live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: sessionTitle,
+          description: sessionDescription,
+          scheduledTime: sessionTime,
+          isActive: true
+        })
+      })
+    } catch (error) {
+      console.error("Error starting screen share:", error)
+    }
+  }
+
+  const startStream = async () => {
+    if (!sessionTitle || !sessionDescription || !sessionTime) {
+      alert("Please fill in all session details before starting the stream.")
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        setIsStreaming(true)
+      }
+
+      // Mark session as active
+      await fetch('/api/live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: sessionTitle,
+          description: sessionDescription,
+          scheduledTime: sessionTime,
+          isActive: true
+        })
+      })
+    } catch (error) {
+      console.error("Error starting camera:", error)
+    }
+  }
+
+  const stopStream = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream
+      stream.getTracks().forEach(track => track.stop())
+      videoRef.current.srcObject = null
+      setIsStreaming(false)
+    }
+
+    // Mark all active sessions as inactive
+    fetch('/api/live/active', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive: false })
+    })
+  }
+
+  const sendComment = () => {
+    if (newComment.trim() && socket) {
+      const comment: Comment = {
+        id: Date.now().toString(),
+        user: "Host",
+        message: newComment,
+        timestamp: new Date()
+      }
+      socket.emit("comment", comment)
+      setComments(prev => [...prev, comment])
+      setNewComment("")
+    }
+  }
+
+  return (
+    <div className="container mx-auto py-12">
+      {/* Session Details Form */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Session Details</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="title">Session Title/Topic</Label>
+            <Input
+              id="title"
+              value={sessionTitle}
+              onChange={(e) => setSessionTitle(e.target.value)}
+              placeholder="e.g., Introduction to React Hooks"
+              disabled={isStreaming}
+            />
+          </div>
+          <div>
+            <Label htmlFor="description">Session Description</Label>
+            <Textarea
+              id="description"
+              value={sessionDescription}
+              onChange={(e) => setSessionDescription(e.target.value)}
+              placeholder="Describe what this session will cover..."
+              disabled={isStreaming}
+            />
+          </div>
+          <div>
+            <Label htmlFor="time">Scheduled Time</Label>
+            <Input
+              id="time"
+              type="datetime-local"
+              value={sessionTime}
+              onChange={(e) => setSessionTime(e.target.value)}
+              disabled={isStreaming}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-8 md:grid-cols-2">
+        {/* Video Stream */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Live Session</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="aspect-video bg-black rounded-lg overflow-hidden mb-4">
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex gap-2">
+              {!isStreaming ? (
+                <>
+                  <Button onClick={startStream}>Start Camera</Button>
+                  <Button onClick={startScreenShare}>Start Screen Share</Button>
+                </>
+              ) : (
+                <Button onClick={stopStream} variant="destructive">Stop Stream</Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Comments */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Live Comments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-64 mb-4">
+              <div className="space-y-2">
+                {comments.map(comment => (
+                  <div key={comment.id} className="p-2 bg-muted rounded">
+                    <div className="font-semibold">{comment.user}</div>
+                    <div>{comment.message}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {comment.timestamp.toLocaleTimeString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+            <div className="flex gap-2">
+              <Input
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Type a comment..."
+                onKeyPress={(e) => e.key === "Enter" && sendComment()}
+              />
+              <Button onClick={sendComment}>Send</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
