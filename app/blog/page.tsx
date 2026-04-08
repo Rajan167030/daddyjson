@@ -1,5 +1,5 @@
 "use client"
-
+ 
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
@@ -12,7 +12,6 @@ import { StaggeredChildren } from "@/components/animations/staggered-children"
 import { StaggeredChild } from "@/components/animations/staggered-child"
 import { TiltCard } from "@/components/ui/cards/tilt-card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { isAdmin } from "@/lib/admin"
 import { ShareBlog } from "@/components/share-blog"
 import { BlogVotes } from "@/components/blog-votes"
 import {
@@ -22,7 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-
+ 
 interface BlogPost {
   id: string
   slug: string
@@ -30,25 +29,34 @@ interface BlogPost {
   date: string
   summary: string
   image: string
+  upvotes?: number
+  downvotes?: number
 }
-
+ 
 export default function BlogPage() {
   const [posts, setPosts] = useState<BlogPost[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [isAdminUser, setIsAdminUser] = useState(false)
   const [showAuthDialog, setShowAuthDialog] = useState(false)
-  const [adminEmail, setAdminEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [authError, setAuthError] = useState("")
   const [authenticating, setAuthenticating] = useState(false)
-
+ 
   useEffect(() => {
-    // Check if user is already admin
-    const stored = localStorage.getItem("adminEmail")
-    if (stored && isAdmin(stored)) {
-      setIsAdminUser(true)
+    // Check session via server (httpOnly cookie — cannot be spoofed from JS)
+    async function checkSession() {
+      try {
+        const res = await fetch("/api/admin/session")
+        if (res.ok) {
+          const data = await res.json()
+          setIsAdminUser(data.isAdmin === true)
+        }
+      } catch {
+        // Not logged in — silently ignore
+      }
     }
-
+ 
     // Fetch blog posts
     async function fetchPosts() {
       try {
@@ -63,43 +71,60 @@ export default function BlogPage() {
         setLoading(false)
       }
     }
-
+ 
+    checkSession()
     fetchPosts()
   }, [])
-
+ 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthError("")
-
-    if (!adminEmail.trim()) {
-      setAuthError("Please enter your email")
+ 
+    if (!password.trim()) {
+      setAuthError("Please enter your password")
       return
     }
-
-    if (!isAdmin(adminEmail)) {
-      setAuthError("Invalid admin credentials. Authorized: rajan@mail.com, Rajan167")
-      return
-    }
-
+ 
     setAuthenticating(true)
     try {
-      // Save to localStorage
-      localStorage.setItem("adminEmail", adminEmail)
+      const res = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      })
+ 
+      if (!res.ok) {
+        setAuthError("Invalid credentials. Please try again.")
+        return
+      }
+ 
       setIsAdminUser(true)
       setShowAuthDialog(false)
-      setAdminEmail("")
-    } catch (err) {
+      setPassword("")
+    } catch {
       setAuthError("Authentication failed. Please try again.")
     } finally {
       setAuthenticating(false)
     }
   }
-
-  const handleLogout = () => {
-    localStorage.removeItem("adminEmail")
+ 
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/admin/logout", { method: "POST" })
+    } catch {
+      // Ignore errors — clear client state regardless
+    }
     setIsAdminUser(false)
   }
-
+ 
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      setPassword("")
+      setAuthError("")
+    }
+    setShowAuthDialog(open)
+  }
+ 
   return (
     <>
       <div className="container px-4 md:px-6 py-12">
@@ -118,8 +143,8 @@ export default function BlogPage() {
                   </p>
                 )}
               </div>
-
-              {/* Admin Button */}
+ 
+              {/* Admin controls */}
               {!isAdminUser ? (
                 <Button
                   onClick={() => setShowAuthDialog(true)}
@@ -143,8 +168,8 @@ export default function BlogPage() {
               )}
             </div>
           </FadeIn>
-
-          {/* Loading State */}
+ 
+          {/* Loading state */}
           {loading ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[...Array(6)].map((_, i) => (
@@ -175,7 +200,7 @@ export default function BlogPage() {
                   <div className="text-5xl">📝</div>
                   <h3 className="text-2xl font-bold">No Articles Yet</h3>
                   <p className="text-muted-foreground max-w-sm">
-                    We're working on creating amazing content. Check back soon for our first article!
+                    We&apos;re working on creating amazing content. Check back soon for our first article!
                   </p>
                 </div>
               </div>
@@ -213,13 +238,17 @@ export default function BlogPage() {
                             </Link>
                             <BlogVotes
                               blogId={post.id}
-                              initialUpvotes={post.upvotes || 0}
-                              initialDownvotes={post.downvotes || 0}
+                              initialUpvotes={post.upvotes ?? 0}
+                              initialDownvotes={post.downvotes ?? 0}
                             />
                           </div>
                           <ShareBlog
                             title={post.title}
-                            url={typeof window !== 'undefined' ? `${window.location.origin}/blog/${post.slug}` : ''}
+                            url={
+                              typeof window !== "undefined"
+                                ? `${window.location.origin}/blog/${post.slug}`
+                                : ""
+                            }
                             description={post.summary}
                           />
                         </div>
@@ -232,54 +261,51 @@ export default function BlogPage() {
           )}
         </div>
       </div>
-
+ 
       {/* Auth Dialog */}
-      <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+      <Dialog open={showAuthDialog} onOpenChange={handleDialogClose}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle>Admin Authentication</DialogTitle>
+                <DialogTitle>Admin Login</DialogTitle>
                 <DialogDescription>
-                  Login to write and manage blog posts
+                  Enter your password to write and manage blog posts
                 </DialogDescription>
               </div>
               <button
-                onClick={() => setShowAuthDialog(false)}
+                onClick={() => handleDialogClose(false)}
                 className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
           </DialogHeader>
-
+ 
           <form onSubmit={handleAdminLogin} className="space-y-4">
             {authError && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-500">
                 {authError}
               </div>
             )}
-
+ 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Admin Email / Username</label>
+              <label className="text-sm font-medium">Password</label>
               <Input
-                type="text"
-                placeholder="rajan@mail.com or Rajan167"
-                value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
+                type="password"
+                placeholder="Enter admin password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 disabled={authenticating}
                 autoFocus
               />
-              <p className="text-xs text-muted-foreground">
-                Authorized admins: rajan@mail.com, Rajan167
-              </p>
             </div>
-
+ 
             <div className="flex gap-3 pt-4">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setShowAuthDialog(false)}
+                onClick={() => handleDialogClose(false)}
                 disabled={authenticating}
                 className="flex-1"
               >
@@ -290,7 +316,7 @@ export default function BlogPage() {
                 disabled={authenticating}
                 className="flex-1"
               >
-                {authenticating ? "Authenticating..." : "Login"}
+                {authenticating ? "Verifying..." : "Login"}
               </Button>
             </div>
           </form>
@@ -299,4 +325,4 @@ export default function BlogPage() {
     </>
   )
 }
-
+ 
