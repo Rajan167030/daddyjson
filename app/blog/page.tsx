@@ -13,6 +13,8 @@ import { StaggeredChild } from "@/components/animations/staggered-child"
 import { TiltCard } from "@/components/ui/cards/tilt-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { isAdmin } from "@/lib/admin"
+import { ShareBlog } from "@/components/share-blog"
+import { BlogVotes } from "@/components/blog-votes"
 import {
   Dialog,
   DialogContent,
@@ -201,13 +203,25 @@ export default function BlogPage() {
                             <p className="text-muted-foreground">{post.summary}</p>
                           </div>
                         </Link>
-                        <div className="p-4 pt-0">
-                          <Link href={`/blog/${post.slug}`}>
-                            <Button variant="ghost" className="gap-1 p-0 h-auto font-medium glow-effect">
-                              Read More
-                              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                            </Button>
-                          </Link>
+                        <div className="p-4 pt-0 flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <Link href={`/blog/${post.slug}`}>
+                              <Button variant="ghost" className="gap-1 p-0 h-auto font-medium glow-effect">
+                                Read More
+                                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                              </Button>
+                            </Link>
+                            <BlogVotes
+                              blogId={post.id}
+                              initialUpvotes={post.upvotes || 0}
+                              initialDownvotes={post.downvotes || 0}
+                            />
+                          </div>
+                          <ShareBlog
+                            title={post.title}
+                            url={typeof window !== 'undefined' ? `${window.location.origin}/blog/${post.slug}` : ''}
+                            description={post.summary}
+                          />
                         </div>
                       </article>
                     </TiltCard>

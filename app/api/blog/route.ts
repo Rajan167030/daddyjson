@@ -49,7 +49,7 @@ const defaultPosts: BlogPostDoc[] = [
   },
 ]
 
-function mapBlogPost(doc: BlogPostDoc) {
+function mapBlogPost(doc: BlogPostDoc, upvotes = 0, downvotes = 0) {
   const fallbackId = doc._id ? String(doc._id) : ""
   return {
     id: doc.id || fallbackId,
@@ -61,6 +61,8 @@ function mapBlogPost(doc: BlogPostDoc) {
     image: doc.image,
     authorEmail: doc.authorEmail,
     published: doc.published,
+    upvotes,
+    downvotes,
   }
 }
 
@@ -105,18 +107,44 @@ export async function GET(request: NextRequest) {
         )
       }
 
+      // Get vote counts for this post
+      const db = await getDb()
+      const blogId = post.id || String(post._id)
+      const upvotes = await db.collection("blog_votes").countDocuments({
+        blogId,
+        voteType: 'up'
+      })
+      const downvotes = await db.collection("blog_votes").countDocuments({
+        blogId,
+        voteType: 'down'
+      })
+
       return NextResponse.json(
         {
           success: true,
-          data: mapBlogPost(post as BlogPostDoc),
+          data: mapBlogPost(post as BlogPostDoc, upvotes, downvotes),
         },
         { status: 200 }
       )
     }
 
     const published = await collection.find({ published: true }).sort({ _id: -1 }).toArray()
-    const data = published.map((post: BlogPostDoc) => mapBlogPost(post))
-    
+
+    // Get vote counts for all posts
+    const db = await getDb()
+    const data = await Promise.all(published.map(async (post: BlogPostDoc) => {
+      const blogId = post.id || String(post._id)
+      const upvotes = await db.collection("blog_votes").countDocuments({
+        blogId,
+        voteType: 'up'
+      })
+      const downvotes = await db.collection("blog_votes").countDocuments({
+        blogId,
+        voteType: 'down'
+      })
+      return mapBlogPost(post, upvotes, downvotes)
+    }))
+
     return NextResponse.json(
       {
         success: true,

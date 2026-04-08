@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { FadeIn } from "@/components/animations/fade-in"
 import { ScrollReveal } from "@/components/animations/scroll-reveal"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ShareBlog } from "@/components/share-blog"
+import { BlogVotes } from "@/components/blog-votes"
 
 interface BlogPost {
   id: string
@@ -117,14 +119,29 @@ export default function BlogDetailPage({ params }: BlogDetailPageProps) {
           </h1>
 
           {/* Meta Information */}
-          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              <span>{post.date}</span>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                <span>{post.date}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span>{post.authorEmail}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              <span>{post.authorEmail}</span>
+
+            <div className="flex items-center gap-4">
+              <BlogVotes
+                blogId={post.id}
+                initialUpvotes={post.upvotes || 0}
+                initialDownvotes={post.downvotes || 0}
+              />
+              <ShareBlog
+                title={post.title}
+                url={typeof window !== 'undefined' ? window.location.href : ''}
+                description={post.summary}
+              />
             </div>
           </div>
 
